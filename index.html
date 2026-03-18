@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Profile — Phạm Hoàng Anh (BoyK)</title>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:wght@300;400;500&family=Noto+Serif+JP:wght@300;400&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     :root {
       --bg: #3a3530;
@@ -743,9 +744,211 @@
       background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
       background-size: 128px;
     }
+    /* ══════════════════════════════════════
+       LOADING SCREEN
+    ══════════════════════════════════════ */
+    #loading-screen {
+      position: fixed; inset: 0;
+      z-index: 9999999;
+      background: #1e1a17;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 20px;
+      transition: opacity 0.6s ease, visibility 0.6s ease;
+    }
+    #loading-screen.hidden { opacity: 0; visibility: hidden; }
+    .loading-kanji {
+      font-family: 'Noto Serif JP', serif;
+      font-size: 42px;
+      color: #e8954a;
+      opacity: 0;
+      animation: kanji-appear 0.8s ease 0.3s forwards;
+      text-shadow: 0 0 30px rgba(232,149,74,0.5);
+    }
+    @keyframes kanji-appear {
+      from { opacity:0; transform: scale(0.7); filter: blur(8px); }
+      to   { opacity:1; transform: scale(1);   filter: blur(0); }
+    }
+    .loading-bar-wrap {
+      width: 120px; height: 2px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .loading-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #e8954a, #ffd070);
+      border-radius: 2px;
+      animation: load-fill 1.4s cubic-bezier(0.4,0,0.2,1) 0.2s forwards;
+      width: 0%;
+    }
+    @keyframes load-fill { to { width: 100%; } }
+    .loading-txt {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 4px;
+      color: rgba(232,149,74,0.5);
+      text-transform: uppercase;
+      animation: blink-soft 1s ease infinite alternate;
+    }
+    @keyframes blink-soft { from{opacity:0.3} to{opacity:0.8} }
+
+    /* ══════════════════════════════════════
+       MATRIX CANVAS
+    ══════════════════════════════════════ */
+    #matrix-canvas {
+      position: fixed; inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.13;
+    }
+
+    /* ══════════════════════════════════════
+       TYPEWRITER
+    ══════════════════════════════════════ */
+    .name-cursor {
+      display: inline-block;
+      width: 2px; height: 0.85em;
+      background: var(--accent);
+      margin-left: 2px;
+      vertical-align: middle;
+      animation: cur-blink 0.7s step-end infinite;
+    }
+    @keyframes cur-blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+    /* ══════════════════════════════════════
+       TAB SLIDE ANIMATION
+    ══════════════════════════════════════ */
+    .panels-wrap {
+      position: relative;
+      overflow: hidden;
+    }
+    .panel {
+      display: none;
+      padding: 28px 28px;
+      animation: none;
+    }
+    .panel.active {
+      display: block;
+    }
+    .panel.slide-in-right  { animation: slideInRight  0.32s cubic-bezier(0.16,1,0.3,1) both; }
+    .panel.slide-in-left   { animation: slideInLeft   0.32s cubic-bezier(0.16,1,0.3,1) both; }
+    .panel.slide-out-right { animation: slideOutRight 0.28s cubic-bezier(0.4,0,1,1) both; }
+    .panel.slide-out-left  { animation: slideOutLeft  0.28s cubic-bezier(0.4,0,1,1) both; }
+    @keyframes slideInRight  { from{opacity:0;transform:translateX(40px)}  to{opacity:1;transform:translateX(0)} }
+    @keyframes slideInLeft   { from{opacity:0;transform:translateX(-40px)} to{opacity:1;transform:translateX(0)} }
+    @keyframes slideOutRight { from{opacity:1;transform:translateX(0)} to{opacity:0;transform:translateX(40px)} }
+    @keyframes slideOutLeft  { from{opacity:1;transform:translateX(0)} to{opacity:0;transform:translateX(-40px)} }
+
+    /* ══════════════════════════════════════
+       SCROLL REVEAL (items trong panel)
+    ══════════════════════════════════════ */
+    .reveal {
+      opacity: 0;
+      transform: translateY(14px);
+      transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ══════════════════════════════════════
+       QR CODE MODAL
+    ══════════════════════════════════════ */
+    .qr-modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.65);
+      z-index: 100000;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; visibility: hidden;
+      transition: opacity 0.3s, visibility 0.3s;
+      backdrop-filter: blur(6px);
+    }
+    .qr-modal-overlay.open { opacity: 1; visibility: visible; }
+    .qr-modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 28px 28px 22px;
+      text-align: center;
+      transform: scale(0.85) translateY(20px);
+      transition: transform 0.35s cubic-bezier(0.16,1,0.3,1);
+      box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+      max-width: 260px; width: 90%;
+    }
+    .qr-modal-overlay.open .qr-modal { transform: scale(1) translateY(0); }
+    .qr-title {
+      font-size: 9px; letter-spacing: 3px; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 16px;
+    }
+    #qr-box {
+      display: inline-block;
+      padding: 10px; background: #fff;
+      border-radius: 10px; margin-bottom: 14px;
+    }
+    #qr-box img, #qr-box canvas { display: block; }
+    .qr-url {
+      font-size: 9px; color: var(--muted);
+      letter-spacing: 0.5px; margin-bottom: 14px;
+      word-break: break-all; line-height: 1.6;
+    }
+    .qr-close {
+      background: none; border: 1px solid var(--border);
+      border-radius: 8px; padding: 6px 18px;
+      font-size: 9px; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--muted);
+      cursor: pointer; font-family: 'DM Mono', monospace;
+      transition: all 0.2s;
+    }
+    .qr-close:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* QR button in footer */
+    .qr-btn {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: none; border: none; color: var(--muted);
+      font-size: 9px; letter-spacing: 1px; text-transform: uppercase;
+      cursor: pointer; font-family: 'DM Mono', monospace;
+      padding: 0; transition: color 0.2s;
+    }
+    .qr-btn:hover { color: var(--accent); }
+
+    /* ══════════════════════════════════════
+       PIXEL ART CHARACTER
+    ══════════════════════════════════════ */
+    #pixel-char {
+      position: absolute;
+      bottom: 0; left: 0;
+      width: 16px; height: 24px;
+      image-rendering: pixelated;
+      pointer-events: none;
+      z-index: 10;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+    }
+
   </style>
 </head>
 <body>
+<!-- LOADING SCREEN -->
+<div id="loading-screen">
+  <div class="loading-kanji">花</div>
+  <div class="loading-bar-wrap"><div class="loading-bar"></div></div>
+  <div class="loading-txt">Loading...</div>
+</div>
+
+<!-- MATRIX CANVAS -->
+<canvas id="matrix-canvas"></canvas>
+
+<!-- QR MODAL -->
+<div class="qr-modal-overlay" id="qr-overlay" onclick="closeQR(event)">
+  <div class="qr-modal">
+    <div class="qr-title">◆ QR Profile ◆</div>
+    <div id="qr-box"></div>
+    <div class="qr-url" id="qr-url-text"></div>
+    <button class="qr-close" onclick="closeQRBtn()">Đóng</button>
+  </div>
+</div>
+
 <!-- CUSTOM CURSOR -->
 <div class="cursor-dot" id="cursor-dot"></div>
 <div class="cursor-ring" id="cursor-ring"></div>
@@ -776,7 +979,7 @@
       <img class="avatar" src="avatar.jpg" alt="Avatar" />
       <div class="avatar-ring"></div>
     </div>
-    <div class="name">Phạm Hoàng Anh</div>
+    <div class="name" id="name-typewriter"></div>
     <div class="title-badge">BoyK</div>
     <div class="status-row">
       <div class="status-dot"></div>
@@ -791,19 +994,23 @@
     <button class="tab" onclick="switchTab('contact', this)">Liên hệ</button>
   </div>
 
+  <!-- PIXEL CHARACTER -->
+  <canvas id="pixel-char" width="16" height="24"></canvas>
+
+  <!-- PANELS WRAP -->
+  <div class="panels-wrap">
   <!-- PANEL: THÔNG TIN -->
   <div class="panel active" id="panel-info">
-    <div class="section-label">Thông tin cá nhân</div>
-
-    <div class="info-row">
+    <div class="section-label reveal">Thông tin cá nhân</div>
+    <div class="info-row reveal">
       <span class="info-key">Biệt danh</span>
       <span class="info-val"><em>BoyK</em></span>
     </div>
-    <div class="info-row">
+    <div class="info-row reveal">
       <span class="info-key">Địa chỉ</span>
-      <span class="info-val">Phường Long Nguyên, Xã Bàu Bàng, Thành phố Hồ Chí Minh</span>
+      <span class="info-val">Xã Bàu Bàng, Thành phố Hồ Chí Minh</span>
     </div>
-    <div class="info-row">
+    <div class="info-row reveal">
       <span class="info-key">Số điện thoại</span>
       <span class="info-val">0342389751</span>
     </div>
@@ -811,11 +1018,9 @@
 
   <!-- PANEL: TÀI KHOẢN -->
   <div class="panel" id="panel-payment">
-    <div class="section-label">Thông tin thanh toán</div>
-
-    <div class="pay-card">
+    <div class="section-label reveal">Thông tin thanh toán</div>
+    <div class="pay-card reveal">
       <div class="pay-icon vcb">
-        <!-- FILE ICON VCB -->
         <img src="icon-vcb.webp" style="width:100%;height:100%;object-fit:cover;border-radius:10px;">
       </div>
       <div class="pay-info">
@@ -825,10 +1030,8 @@
       </div>
       <button class="copy-btn" onclick="copyText('0354009556', this)">Copy</button>
     </div>
-
-    <div class="pay-card">
+    <div class="pay-card reveal">
       <div class="pay-icon pp">
-        <!-- FILE ICON PP -->
         <img src="icon-pp.webp" style="width:100%;height:100%;object-fit:cover;border-radius:10px;">
       </div>
       <div class="pay-info">
@@ -838,10 +1041,8 @@
       </div>
       <button class="copy-btn" onclick="copyText('0354009556', this)">Copy</button>
     </div>
-
-    <div class="pay-card">
+    <div class="pay-card reveal">
       <div class="pay-icon rv">
-        <!-- FILE ICON RV -->
         <img src="icon-rv.webp" style="width:100%;height:100%;object-fit:cover;border-radius:10px;">
       </div>
       <div class="pay-info">
@@ -855,11 +1056,9 @@
 
   <!-- PANEL: LIÊN HỆ -->
   <div class="panel" id="panel-contact">
-    <div class="section-label">Liên hệ</div>
-
-    <div class="contact-item">
+    <div class="section-label reveal">Liên hệ</div>
+    <div class="contact-item reveal">
       <div class="contact-icon">
-        <!-- FILE ICON FACEBOOK (Bạn cần có file này) -->
         <img src="icon-facebook.webp" style="width:28px;height:28px;border-radius:50%;object-fit:cover;" />
       </div>
       <div>
@@ -867,10 +1066,8 @@
         <div class="contact-val"><a href="https://www.facebook.com/pham.hoang.anh.984056" target="_blank">Phạm Hoàng Anh</a></div>
       </div>
     </div>
-
-    <div class="contact-item">
+    <div class="contact-item reveal">
       <div class="contact-icon">
-        <!-- FILE ICON INSTAGRAM -->
         <img src="icon-instagram.png" style="width:28px;height:28px;border-radius:8px;object-fit:cover;" />
       </div>
       <div>
@@ -878,10 +1075,8 @@
         <div class="contact-val"><a href="https://www.instagram.com/hoanqanhhhh/" target="_blank">@hoanqanhhhh</a></div>
       </div>
     </div>
-
-    <div class="contact-item">
+    <div class="contact-item reveal">
       <div class="contact-icon">
-        <!-- FILE ICON THREADS -->
         <img src="icon-threads.png" style="width:28px;height:28px;object-fit:contain;filter:invert(1) brightness(2);" />
       </div>
       <div>
@@ -890,6 +1085,8 @@
       </div>
     </div>
   </div>
+
+  </div><!-- end panels-wrap -->
 
   <!-- FOOTER -->
   <div class="card-footer">
@@ -902,7 +1099,14 @@
     </div>
 
     <!-- Center sig -->
-    <span class="footer-year">MMXXIV</span>
+    <button class="qr-btn" onclick="openQR()" title="QR Code Profile">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+        <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="3" height="3"/>
+        <rect x="19" y="14" width="2" height="2"/><rect x="14" y="19" width="2" height="2"/><rect x="18" y="18" width="3" height="3"/>
+      </svg>
+      MMXXIV
+    </button>
 
     <!-- Share button -->
     <button class="share-btn" id="share-btn" onclick="shareProfile()">
@@ -937,13 +1141,249 @@
 </audio>
 
 <script>
-  // Hàm chuyển tab
-  function switchTab(id, btn) {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById('panel-' + id).classList.add('active');
+  // ═══════════════════════════════════════════
+  // ═══  LOADING SCREEN  ═══════════════════════
+  // ═══════════════════════════════════════════
+  window.addEventListener('load', () => {
+    setTimeout(() => {
+      const ls = document.getElementById('loading-screen');
+      if (ls) ls.classList.add('hidden');
+      // Trigger reveal on active panel after load
+      triggerReveal(document.querySelector('.panel.active'));
+      // Start typewriter after loading
+      typewriterName('Phạm Hoàng Anh');
+    }, 1800);
+  });
+
+  // ═══════════════════════════════════════════
+  // ═══  TYPEWRITER  ═══════════════════════════
+  // ═══════════════════════════════════════════
+  function typewriterName(text) {
+    const el = document.getElementById('name-typewriter');
+    if (!el) return;
+    el.innerHTML = '<span class="name-cursor"></span>';
+    let i = 0;
+    const speed = 70;
+    function type() {
+      if (i < text.length) {
+        const cursor = el.querySelector('.name-cursor');
+        el.insertBefore(document.createTextNode(text[i]), cursor);
+        i++;
+        setTimeout(type, speed);
+      } else {
+        // Remove cursor after done
+        setTimeout(() => {
+          const c = el.querySelector('.name-cursor');
+          if (c) c.style.display = 'none';
+        }, 1200);
+      }
+    }
+    setTimeout(type, 300);
   }
+
+  // ═══════════════════════════════════════════
+  // ═══  TAB SWITCHING WITH SLIDE  ═════════════
+  // ═══════════════════════════════════════════
+  const TAB_ORDER = ['info', 'payment', 'contact'];
+  let currentTabIdx = 0;
+
+  function switchTab(id, btn) {
+    const newIdx = TAB_ORDER.indexOf(id);
+    const dir = newIdx > currentTabIdx ? 'right' : 'left';
+    const oldPanel = document.querySelector('.panel.active');
+    const newPanel = document.getElementById('panel-' + id);
+    if (oldPanel === newPanel) return;
+
+    // Slide out old
+    oldPanel.classList.add(dir === 'right' ? 'slide-out-left' : 'slide-out-right');
+    setTimeout(() => {
+      oldPanel.classList.remove('active', 'slide-out-left', 'slide-out-right');
+      // Slide in new
+      newPanel.classList.add('active', dir === 'right' ? 'slide-in-right' : 'slide-in-left');
+      setTimeout(() => {
+        newPanel.classList.remove('slide-in-right', 'slide-in-left');
+        triggerReveal(newPanel);
+      }, 320);
+    }, 220);
+
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    currentTabIdx = newIdx;
+  }
+
+  // ═══════════════════════════════════════════
+  // ═══  REVEAL ANIMATION  ═════════════════════
+  // ═══════════════════════════════════════════
+  function triggerReveal(panel) {
+    if (!panel) return;
+    const items = panel.querySelectorAll('.reveal');
+    items.forEach((el, i) => {
+      el.classList.remove('visible');
+      setTimeout(() => el.classList.add('visible'), 60 + i * 80);
+    });
+  }
+
+  // ═══════════════════════════════════════════
+  // ═══  QR CODE  ══════════════════════════════
+  // ═══════════════════════════════════════════
+  let qrGenerated = false;
+  function openQR() {
+    const overlay = document.getElementById('qr-overlay');
+    const urlEl   = document.getElementById('qr-url-text');
+    const url     = window.location.href;
+    if (urlEl) urlEl.textContent = url;
+    if (!qrGenerated) {
+      new QRCode(document.getElementById('qr-box'), {
+        text: url,
+        width: 160, height: 160,
+        colorDark: '#2a2420', colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.H
+      });
+      qrGenerated = true;
+    }
+    overlay.classList.add('open');
+  }
+  function closeQR(e) {
+    if (e.target === document.getElementById('qr-overlay'))
+      document.getElementById('qr-overlay').classList.remove('open');
+  }
+  function closeQRBtn() {
+    document.getElementById('qr-overlay').classList.remove('open');
+  }
+
+  // ═══════════════════════════════════════════
+  // ═══  MATRIX RAIN  ══════════════════════════
+  // ═══════════════════════════════════════════
+  (function() {
+    const canvas = document.getElementById('matrix-canvas');
+    const ctx    = canvas.getContext('2d');
+    const CHARS  = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789';
+    let cols, drops;
+
+    function resize() {
+      canvas.width  = window.innerWidth;
+      canvas.height = window.innerHeight;
+      cols  = Math.floor(canvas.width / 16);
+      drops = Array(cols).fill(1);
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    function drawMatrix() {
+      const isLight = document.documentElement.classList.contains('light');
+      ctx.fillStyle = isLight ? 'rgba(245,240,232,0.06)' : 'rgba(30,26,23,0.06)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = isLight ? 'rgba(180,120,60,0.55)' : 'rgba(232,149,74,0.55)';
+      ctx.font = '13px "DM Mono", monospace';
+      drops.forEach((y, i) => {
+        const ch = CHARS[Math.floor(Math.random() * CHARS.length)];
+        ctx.fillText(ch, i * 16, y * 16);
+        if (y * 16 > canvas.height && Math.random() > 0.975) drops[i] = 0;
+        drops[i]++;
+      });
+    }
+    setInterval(drawMatrix, 55);
+  })();
+
+  // ═══════════════════════════════════════════
+  // ═══  PIXEL ART CHARACTER  ══════════════════
+  // ═══════════════════════════════════════════
+  (function() {
+    const canvas = document.getElementById('pixel-char');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    // 16x24 pixel sprite frames (walk cycle) — each row = 1 frame
+    // Colors: skin=#f5c8a0, hair=#3a2a1a, shirt=#e8954a, pants=#4a6080, shoe=#2a1a0a
+    const FRAMES = [
+      // Frame 0 — stand/walk A
+      [
+        '0000666600000000',
+        '0006666666000000',
+        '0006644666000000',
+        '0006644666000000',
+        '0066644666600000',
+        '0000666600000000',
+        '0000666600000000',
+        '0033666633000000',
+        '0033333333000000',
+        '0033333333000000',
+        '0033330033000000',
+        '0033000033000000',
+        '0022000022000000',
+        '0022000022000000',
+        '0011000011000000',
+        '0011000011000000',
+      ],
+      // Frame 1 — walk B
+      [
+        '0000666600000000',
+        '0006666666000000',
+        '0006644666000000',
+        '0006644666000000',
+        '0066644666600000',
+        '0000666600000000',
+        '0000666600000000',
+        '0033666633000000',
+        '0033333333000000',
+        '0033333333000000',
+        '0003333300000000',
+        '0030003300000000',
+        '0020002200000000',
+        '0220000000000000',
+        '0110000011000000',
+        '0010000011000000',
+      ],
+    ];
+    const PALETTE = {
+      '0': null,
+      '1': '#2a1a0a', // shoe
+      '2': '#4a6080', // pants
+      '3': '#e8954a', // shirt/accent
+      '4': '#f5c8a0', // skin
+      '5': null,
+      '6': '#3a2a1a', // hair/head outline
+    };
+
+    let px = 0;
+    let dir = 1;
+    let frame = 0;
+    let frameTimer = 0;
+    const SPEED = 0.6;
+    const cardEl = document.querySelector('.card');
+
+    function drawSprite(f) {
+      ctx.clearRect(0, 0, 16, 24);
+      const rows = FRAMES[f];
+      rows.forEach((row, y) => {
+        for (let x = 0; x < 16; x++) {
+          const c = PALETTE[row[x]];
+          if (c) {
+            ctx.fillStyle = c;
+            ctx.fillRect(x, y, 1, 1);
+          }
+        }
+      });
+    }
+
+    function animChar() {
+      const maxX = (cardEl ? cardEl.offsetWidth : 460) - 18;
+      px += SPEED * dir;
+      if (px > maxX) { px = maxX; dir = -1; }
+      if (px < 0)    { px = 0;    dir = 1; }
+
+      frameTimer++;
+      if (frameTimer > 10) { frame = 1 - frame; frameTimer = 0; }
+
+      canvas.style.left = px + 'px';
+      canvas.style.transform = dir === -1 ? 'scaleX(-1)' : 'scaleX(1)';
+      drawSprite(frame);
+      requestAnimationFrame(animChar);
+    }
+    drawSprite(0);
+    animChar();
+  })();
+
+
 
   // Quản lý timeout cho các nút copy
   const copyTimeouts = {};
